@@ -6,20 +6,34 @@ import numpy as np
 from preproc import preprocess_image
 from sklearn.model_selection import KFold
 import os
+import tensorflow as tf
 
 
 def train_generator(img_path_list, label_path_list, batch_size, img_size):
     while True:
-        for j in range(0, img_path_list, batch_size):
+        for j in range(0, len(img_path_list), batch_size):
             train_x = []
             train_y = []
-            for i in batch_size:
+            for i in range(batch_size):
+                if(i+j >= len(img_path_list)):
+                    break
                 img_data = nib.load(img_path_list[i+j]).get_fdata()
                 label_data = nib.load(label_path_list[i+j]).get_fdata()
                 tr_x,tr_y = preprocess_image(img_data,label_data,img_size)
                 train_x += tr_x
                 train_y += tr_y
-            yield( np.array(train_x), np.array(train_y))
+                print('sample number ' + str(i+j))
+            #print(np.array(train_x).shape)
+            train_x = np.array(train_x)
+            train_y = np.array(train_y)
+
+            train_x = np.expand_dims(train_x, axis=3)
+            train_y = np.expand_dims(train_y,axis=3)
+
+            train_x = np.tile(train_x,(1,1,1,3))
+            train_y = np.tile(train_y,(1,1,1,3))
+            
+            yield( train_x, train_y)
 
 
 def image_list_from_dir(task_dir):
@@ -89,7 +103,37 @@ if __name__=="__main__":
     #     out_fname="out.png"
     # )
 
-    #print(create_cross_validation_data(['../Dataset/Task02_Heart']))
-    model = keras_segmentation.models.unet.vgg_unet(n_classes=3 ,  input_height=64, input_width=64)
+    checkpoint_path = "saved_models/training_heart/cp-{epoch:04d}.ckpt"
+    # checkpoint_dir = os.path.dirname(checkpoint_path)
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(
+                    filepath=checkpoint_path, 
+                    verbose=1, 
+                    save_weights_only=True,
+                    period=5)
+
+
+
+    img_size = (224,224)
+    k_fold_train_data,k_fold_test_data = create_cross_validation_data(['../Dataset/Task02_Heart'])
+    
+    
+    train_img_path_list = [i[0] for i in k_fold_train_data[0]]
+    train_labels_path_list = [i[1] for i in k_fold_train_data[0]]
+    
+    test_img_path_list = [i[0] for i in k_fold_test_data[0]]
+    test_labels_path_list = [i[1] for i in k_fold_test_data[0]]
+    batch_size = 1
+
+    model = keras_segmentation.models.unet.vgg_unet(n_classes=3 ,  input_height=img_size[0], input_width=img_size[1])
+    print(model.summary())
+    model.compile(optimizer='adam', loss=dice_coef_loss, metrics=[dice_coef])
+    model.fit_generator(generator=train_generator(train_img_path_list,train_labels_path_list,batch_size=batch_size, img_size = img_size),
+                        steps_per_epoch=len(train_img_path_list)/batch_size, 
+                        epochs=5,
+                        callbacks=[cp_callback], 
+                        verbose=1,
+                        validation_data = train_generator(test_img_path_list,test_labels_path_list,batch_size=batch_size, img_size = img_size),
+                        validation_steps=len(test_img_path_list)/batch_size)
+
 
 

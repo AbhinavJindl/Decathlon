@@ -24,11 +24,11 @@ def preprocess_image(img, labelimg, img_size):
             train_x.append(cv2.resize(img[i,:,:,j],img_size))
             train_y.append(cv2.resize(labelimg[i,:,:],img_size))
             
-        for i in range(train_img_x.shape[1]):
+        for i in range(img.shape[1]):
             train_x.append(cv2.resize(img[:,i,:,j],img_size))
             train_y.append(cv2.resize(labelimg[:,i,:],img_size))
             
-        for i in range(train_img_x.shape[2]):
+        for i in range(img.shape[2]):
             train_x.append(cv2.resize(img[:,:,i,j],img_size))
             train_y.append(cv2.resize(labelimg[:,:,i],img_size))
     return train_x,train_y
