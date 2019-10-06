@@ -13,7 +13,7 @@ def print_dimensions(task_dir):
             train_img_y = nib.load(task_dir + '/labelsTr/' + train_image_name).get_data()
             train_img_y = np.asarray(train_img_y)
             print (train_image_name,train_img_x.shape, train_img_y.shape)
-            return
+            
 
 
 if __name__=="__main__":
