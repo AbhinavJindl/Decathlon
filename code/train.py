@@ -53,7 +53,9 @@ def image_list_from_dir(task_dir):
     image_x_list = os.listdir(task_dir + '/imagesTr')
     image_y_list = os.listdir(task_dir + '/labelsTr')
 
-
+    image_x_list = sorted(image_x_list)
+    image_y_list = sorted(image_y_list)
+    
     # storing images path after removing '.' beginning images
     image_x_list = [os.path.join(task_dir,'imagesTr',x) for x in image_x_list if x[0]!='.']
     image_y_list = [os.path.join(task_dir,'labelsTr',x) for x in image_y_list if x[0]!='.']
@@ -106,7 +108,7 @@ def dice_coef_loss(y_true, y_pred):
 #-----------------
 #update this list to train individual organs.
 #-----------------
-task_dir_list = ['Task02_Heart']
+task_dir_list = ['Task02_Heart','Task06_Lung','Task09_Spleen','Task10_Colon']
 for task_dir in task_dir_list:
     k_fold_train_data,k_fold_test_data = create_cross_validation_data(['../Dataset/' + task_dir])
     
