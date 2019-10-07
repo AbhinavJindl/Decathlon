@@ -1,10 +1,10 @@
 import keras_segmentation
+import keras
 from keras.optimizers import Adam
 from keras import backend as K
 import nibabel as nib
 import numpy as np
 from preproc import *
-from sklearn.model_selection import KFold
 import os
 import tensorflow as tf
 import gc
@@ -48,17 +48,21 @@ def find_num_steps_train(train_img_list):
         for dim in data.shape:
             tot_steps += dim
     return tot_steps
-
-                    
+               
 
 def dice_coef(y_true, y_pred, smooth=1):
+    print(y_pred.shape,y_true.shape)
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
-def dice_coef_loss(y_true, y_pred):
+def dice_coef_loss(y_true, y_pred,smooth=1):
     return -dice_coef(y_true, y_pred)
+
+def loss_func(y_true,y_pred, smooth=1):
+    return dice_coef_loss(y_true,y_pred,smooth) + keras.losses.categorical_crossentropy(y_true,y_pred)
+
 
 
 
@@ -98,8 +102,8 @@ for task_dir in task_dir_list:
         for layer_num in range(layers_not_cons):
             model.layers[layer_num].trainable = False
 
-        model.compile(optimizer='adam', loss=dice_coef_loss, metrics=[dice_coef])
-        per_image_batch_size = 16
+        model.compile(optimizer='adam', loss=loss_func, metrics=[dice_coef])
+        per_image_batch_size = 8
         img_size = (model.input_height,model.input_width)
         labelimg_size = (model.output_height, model.output_width)
         steps_per_epoch = find_num_steps_train(train_img_path_list)

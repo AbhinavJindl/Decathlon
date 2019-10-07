@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib.image as Image
 import cv2
+from sklearn.model_selection import KFold
 
 def saveImage(train_img_x, train_img_y, train_image_name, train_dir):
     #print(train_img_y.dtype)
