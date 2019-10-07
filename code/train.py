@@ -9,6 +9,15 @@ import os
 import tensorflow as tf
 import gc
 import shutil
+import pickle
+
+def save_pickle(obj,filename):
+    with open(filename, 'wb') as handle:
+        pickle.dump(obj, handle)
+
+def load_pickle(filename):
+    with open(filename, 'rb') as handle:
+        return pickle.load(handle)
 
 
 def train_generator(img_path_list, label_path_list, img_size, labelimg_size, per_img_batch_size=16,nClasses = 3):
@@ -51,7 +60,6 @@ def find_num_steps_train(train_img_list):
                
 
 def dice_coef(y_true, y_pred, smooth=1):
-    print(y_pred.shape,y_true.shape)
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
@@ -71,49 +79,55 @@ def loss_func(y_true,y_pred, smooth=1):
 #-----------------
 #update this list to train individual organs.
 #-----------------
-task_dir_list = ['Task02_Heart','Task06_Lung','Task09_Spleen','Task10_Colon']
-for task_dir in task_dir_list:
-    k_fold_train_data,k_fold_test_data = create_cross_validation_data(['../Dataset/' + task_dir])
+task_dir_list = ['../Dataset/Task02_Heart','../Dataset/Task06_Lung','../Dataset/Task09_Spleen','../Dataset/Task10_Colon']
+print ('Creating folds....')
+k_fold_train_data,k_fold_test_data = create_cross_validation_data(task_dir_list)
+print ('Saving folds...')
+save_pickle((k_fold_train_data,k_fold_test_data),'folds_data.pkl')
+
+
+for fold in range(len(k_fold_train_data)):
+    train_img_path_list = [i[0] for i in k_fold_train_data[fold]]
+    train_labels_path_list = [i[1] for i in k_fold_train_data[fold]]
     
-    for fold in range(len(k_fold_train_data)):
-        train_img_path_list = [i[0] for i in k_fold_train_data[fold]]
-        train_labels_path_list = [i[1] for i in k_fold_train_data[fold]]
-        
-        test_img_path_list = [i[0] for i in k_fold_test_data[fold]]
-        test_labels_path_list = [i[1] for i in k_fold_test_data[fold]]
+    test_img_path_list = [i[0] for i in k_fold_test_data[fold]]
+    test_labels_path_list = [i[1] for i in k_fold_test_data[fold]]
 
-        if os.path.exists('../saved_models') == False:
-            os.mkdir('../saved_models')
+    if os.path.exists('../saved_models') == False:
+        os.mkdir('../saved_models')
 
-        if os.path.exists('../saved_models/' + task_dir) == False:
-            os.mkdir('../saved_models/' + task_dir)
-        if (os.path.exists("../saved_models/"+task_dir+"/" +str(fold))) == False:
-            os.mkdir("../saved_models/"+task_dir+"/" +str(fold))
+    # if os.path.exists('../saved_models/' + task_dir) == False:
+    #     os.mkdir('../saved_models/' + task_dir)
+    # if (os.path.exists("../saved_models/"+task_dir+"/" +str(fold))) == False:
+    #     os.mkdir("../saved_models/"+task_dir+"/" +str(fold))
 
-        checkpoint_path = "../saved_models/"+task_dir+"/" +str(fold)+"/cp-{epoch:04d}.ckpt"
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(
-                filepath=checkpoint_path, 
-                verbose=1, 
-                save_weights_only=True,
-                save_freq='epoch')
-        model = keras_segmentation.models.unet.vgg_unet(n_classes=3 ,  input_height=224, input_width=224)
+    if os.path.exists('../saved_models/' + str(fold)) == False:
+        os.mkdir('../saved_models/' + str(fold))
 
-        layers_not_cons = 14
-        for layer_num in range(layers_not_cons):
-            model.layers[layer_num].trainable = False
+    checkpoint_path = "../saved_models/"+str(fold)+"/cp-{epoch:04d}.ckpt"
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=checkpoint_path, 
+            verbose=1, 
+            save_weights_only=True,
+            period=1)
+    model = keras_segmentation.models.unet.vgg_unet(n_classes=3 ,  input_height=224, input_width=224)
 
-        model.compile(optimizer='adam', loss=loss_func, metrics=[dice_coef])
-        per_image_batch_size = 8
-        img_size = (model.input_height,model.input_width)
-        labelimg_size = (model.output_height, model.output_width)
-        steps_per_epoch = find_num_steps_train(train_img_path_list)
-        validation_steps_per_epoch = find_num_steps_train(test_img_path_list)
-        his = model.fit_generator(generator=train_generator(train_img_path_list,train_labels_path_list, img_size = img_size,labelimg_size = labelimg_size, per_img_batch_size=per_image_batch_size),
-                            steps_per_epoch=steps_per_epoch/per_image_batch_size,
-                            epochs=5,
-                            callbacks=[cp_callback], 
-                            verbose=1)
-        #validation_acc = model.evaluate_generator(generator=train_generator(test_img_path_list,test_img_path_list,img_size,labelimg_size,per_image_batch_size),steps=validation_steps_per_epoch)
+    layers_not_cons = 14
+    for layer_num in range(layers_not_cons):
+        model.layers[layer_num].trainable = False
+
+    model.compile(optimizer='adam', loss=loss_func, metrics=[dice_coef])
+    per_image_batch_size = 8
+    img_size = (model.input_height,model.input_width)
+    labelimg_size = (model.output_height, model.output_width)
+    steps_per_epoch = 16 #find_num_steps_train(train_img_path_list)
+    validation_steps_per_epoch = find_num_steps_train(test_img_path_list)
+    his = model.fit_generator(generator=train_generator(train_img_path_list,train_labels_path_list, img_size = img_size,labelimg_size = labelimg_size, per_img_batch_size=per_image_batch_size),
+                        steps_per_epoch=steps_per_epoch/per_image_batch_size,
+                        epochs=5,
+                        callbacks=[cp_callback], 
+                        verbose=1)
+    #validation_acc = model.evaluate_generator(generator=train_generator(test_img_path_list,test_img_path_list,img_size,labelimg_size,per_image_batch_size),steps=validation_steps_per_epoch)
             
 
 
