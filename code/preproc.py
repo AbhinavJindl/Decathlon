@@ -29,6 +29,47 @@ def get_seg_arr(img, img_size, nClasses):
     seg_labels = np.reshape(seg_labels, ( img_size[0]*img_size[1] , nClasses ))
     return seg_labels
 
+def image_list_from_dir(task_dir):
+    image_x_list = os.listdir(task_dir + '/imagesTr')
+    image_y_list = os.listdir(task_dir + '/labelsTr')
+
+    image_x_list = sorted(image_x_list)
+    image_y_list = sorted(image_y_list)
+
+    # storing images path after removing '.' beginning images
+    image_x_list = [os.path.join(task_dir,'imagesTr',x) for x in image_x_list if x[0]!='.']
+    image_y_list = [os.path.join(task_dir,'labelsTr',x) for x in image_y_list if x[0]!='.']
+
+    return image_x_list,image_y_list
+
+def create_cross_validation_data(task_dir_list, folds=5):
+
+    # list of all images of all tasks
+    image_x_list = []
+    image_y_list = []
+    for task_dir in task_dir_list:
+        image_x, image_y = image_list_from_dir(task_dir)
+        image_x_list += image_x
+        image_y_list += image_y
+
+    data_list = []
+    for i in range(len(image_x_list)):
+        data_list.append((image_x_list[i],image_y_list[i]))
+
+    kf = KFold(n_splits=folds)
+    kf.get_n_splits(data_list)
+
+
+    train_data = []
+    test_data = []
+    for train_index, test_index in kf.split(data_list):
+        train_data.append([data_list[x] for x in train_index])
+        test_data.append([data_list[x] for x in test_index])
+
+    
+    return train_data,test_data
+
+
 
 def preprocess_image(img, labelimg, img_size, labelimg_size, nClasses):
     if(img.ndim == 3):
