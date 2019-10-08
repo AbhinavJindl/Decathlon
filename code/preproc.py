@@ -57,7 +57,7 @@ def create_cross_validation_data(task_dir_list, folds=5):
     for i in range(len(image_x_list)):
         data_list.append((image_x_list[i],image_y_list[i]))
 
-    kf = KFold(n_splits=folds)
+    kf = KFold(n_splits=folds,shuffle=True)
     kf.get_n_splits(data_list)
 
 
