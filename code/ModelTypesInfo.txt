@@ -1,0 +1,5 @@
+ModelTypes : 
+	1)VggUnet
+	2)OneAxisVggUnet
+	3)ThreeConsSliceVggUnet
+	4)OneAxisThreeConsSliceVggUnet
